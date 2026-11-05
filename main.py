@@ -1,4 +1,6 @@
 import asyncio
+import os
+from aiohttp import web
 from datetime import datetime, timedelta
 from aiogram import Bot, Dispatcher, F, types
 from aiogram.filters import CommandStart, Command
@@ -376,12 +378,10 @@ async def doctor_start_confirmation(callback: types.CallbackQuery, state: FSMCon
     await callback.answer()
 
 @dp.message(DoctorConfirmState.waiting_for_time_input)
-async def doctor_send_confirmation(message: types.Message, state: FSMContext):
-    if message.from_user.id != DOCTOR_CHAT_ID:
-        return
+async def doctor_time_input(message: types.Message, state: FSMContext):
+    doctor_text = message.text
     data = await state.get_data()
     patient_id = data.get("patient_id")
-    doctor_text = message.text
     
     patient_msg = (
         "✅ <b>Shifokor chaqiruvni tasdiqladi!</b>\n"
@@ -397,20 +397,32 @@ async def doctor_send_confirmation(message: types.Message, state: FSMContext):
         await message.answer(f"❌ Xabar yuborishda xatolik yuz berdi: {e}")
         
     await state.clear()
+    
+async def index(request):
+    return web.Response(text="Bot is active and running 24/7!")
 
-# Asosiy ishga tushirish funksiyasi
+async def web_server():
+    app = web.Application()
+    app.router.add_get("/", index)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    
+    port = int(os.environ.get("PORT", 8080))
+    site = web.TCPSite(runner, "0.0.0.0", port)
+    await site.start()
+    return runner
+
 async def main():
-    print("Bot muvaffaqiyatli ishga tushdi...")
+    # 1. Avval Render port talabini qondirish uchun veb-serverni ishga tushiramiz
+    await web_server()
+    print("Veb-server muvaffaqiyatli ishga tushdi va port ochildi.")
+    
+    # 2. Keyin Telegram bot pollingni boshlaymiz
+    print("Bot polling boshlandi...")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
-    import threading
-    
-    def run_web():
-        web.run_app(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
-
-    # Veb-serverni alohida oqimda ishga tushiramiz
-    t = threading.Thread(target=run_web, daemon=True)
-    
-    # Asosiy oqimda bot ishlayveradi
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except (KeyboardInterrupt, SystemExit):
+        print("Bot to'xtatildi.")
