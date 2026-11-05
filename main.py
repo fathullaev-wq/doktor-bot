@@ -404,4 +404,13 @@ async def main():
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
+    import threading
+    
+    def run_web():
+        web.run_app(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
+
+    # Veb-serverni alohida oqimda ishga tushiramiz
+    t = threading.Thread(target=run_web, daemon=True)
+    
+    # Asosiy oqimda bot ishlayveradi
     asyncio.run(main())
